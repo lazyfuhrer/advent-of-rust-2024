@@ -1,0 +1,146 @@
+use std::{cmp::Ordering, error::Error, ops::Deref};
+
+// 1. Update the function signature to accept and return references to Locations
+pub fn find_most_dense_location(locations: &[Location]) -> Result<&Location, Box<dyn Error>> {
+    locations
+        .iter()
+        .max_by(|a, b| {
+            a.density()
+                .partial_cmp(&b.density())
+                .unwrap_or(Ordering::Equal)
+        })
+        .ok_or("No locations found".into())
+}
+
+pub fn find_nearest_location(locations: &[Location]) -> Result<&Location, Box<dyn Error>> {
+    // 2. Find the nearest location
+    // Only consider locations with a density of 1000 or more
+    locations
+        .iter()
+        .filter(|location| location.density() >= 1000.0)
+        .min_by(|a, b| {
+            let distance_a = (a.x.powi(2) + a.y.powi(2)).sqrt();
+            let distance_b = (b.x.powi(2) + b.y.powi(2)).sqrt();
+            distance_a.partial_cmp(&distance_b).unwrap_or(Ordering::Equal)
+        })
+        .ok_or("No suitable locations found".into())
+}
+
+const SNOWBALL_WEIGHT_KG: f64 = 0.2;
+const SNOWBALL_WEIGHT_LB: f64 = 0.441;
+
+#[derive(Debug)]
+pub struct SnowKg(pub f64);
+
+impl SnowKg {
+    pub fn new(kg: f64) -> Self {
+        SnowKg(kg)
+    }
+}
+
+impl Deref for SnowKg {
+    type Target = f64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Debug)]
+pub struct SnowLb(pub f64);
+
+impl SnowLb {
+    pub fn new(lb: f64) -> Self {
+        SnowLb(lb)
+    }
+}
+
+impl Deref for SnowLb {
+    type Target = f64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Snowball(pub i64);
+
+impl Snowball {
+    pub fn new(snowballs: i64) -> Self {
+        Snowball(snowballs)
+    }
+}
+
+impl Deref for Snowball {
+    type Target = i64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<SnowKg> for Snowball {
+    fn from(kg: SnowKg) -> Self {
+        let snowballs = (*kg / SNOWBALL_WEIGHT_KG).round() as i64;
+        Snowball(snowballs)
+    }
+}
+
+impl From<SnowLb> for Snowball {
+    fn from(lb: SnowLb) -> Self {
+        let snowballs = (*lb / SNOWBALL_WEIGHT_LB).round() as i64;
+        Snowball(snowballs)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Location {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub area: f64,
+    pub snow: Snowball,
+}
+
+impl Location {
+    pub fn new(x: f64, y: f64, z: f64, area: f64, snow: impl Into<Snowball>) -> Self {
+        Self {
+            x,
+            y,
+            z,
+            area,
+            snow: snow.into(),
+        }
+    }
+
+    pub fn density(&self) -> f64 {
+        if self.area > 0.0 {
+            *self.snow as f64 / self.area
+        } else {
+            0.0
+        }
+    }
+}
+
+fn main() {
+    // Create some sample locations
+    let locations = vec![
+        Location::new(1.0, 2.0, 0.0, 10.0, Snowball::new(100)),
+        Location::new(3.0, 4.0, 0.0, 5.0, Snowball::new(50)),
+        Location::new(5.0, 12.0, 0.0, 2.0, Snowball::new(20)),
+        Location::new(7.0, 1.0, 0.0, 1.0, Snowball::new(200)),
+    ];
+
+    // Find the most dense location
+    match find_most_dense_location(&locations) {
+        Ok(location) => println!("Most dense location: {:?}", location),
+        Err(e) => println!("Error finding most dense location: {}", e),
+    }
+
+    // Find the nearest location with a density of at least 1000
+    match find_nearest_location(&locations) {
+        Ok(location) => println!("Nearest location with density >= 1000: {:?}", location),
+        Err(e) => println!("Error finding nearest location: {}", e),
+    }
+}
